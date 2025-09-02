@@ -1,0 +1,177 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  GLOBAL_CONTENT_CREATOR
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+model User {
+  id            String   @id @default(cuid())
+  phoneNumber   String   @unique
+  email         String?  @unique
+  name          String
+  password      String
+  role          Role
+  institutionId String?
+  institution   Institution? @relation(fields: [institutionId], references: [id])
+  approved      Boolean  @default(false)
+  profilePic    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  createdQuizzes    Quiz[]
+  quizAttempts      QuizAttempt[]
+  leaderboardEntries Leaderboard[]
+  gradeStudents     Grade[] @relation("GradeStudents")
+  gradeTeachers     Grade[] @relation("GradeTeachers")
+
+  @@map("users")
+}
+
+model Institution {
+  id           String   @id @default(cuid())
+  name         String
+  address      String?
+  approved     Boolean  @default(false)
+  adminId      String
+  users        User[]
+  grades       Grade[]
+  quizzes      Quiz[]
+  leaderboards Leaderboard[]
+  createdAt    DateTime @default(now())
+
+  @@map("institutions")
+}
+
+model Grade {
+  id             String   @id @default(cuid())
+  name           String
+  institutionId  String
+  institution    Institution @relation(fields: [institutionId], references: [id])
+  subjects       Subject[]
+  students       User[] @relation("GradeStudents")
+  teachers       User[] @relation("GradeTeachers")
+  createdAt      DateTime @default(now())
+
+  @@map("grades")
+}
+
+model Subject {
+  id           String   @id @default(cuid())
+  name         String
+  gradeId      String
+  grade        Grade @relation(fields: [gradeId], references: [id])
+  quizzes      Quiz[]
+  createdAt    DateTime @default(now())
+
+  @@map("subjects")
+}
+
+model Quiz {
+  id           String   @id @default(cuid())
+  title        String
+  description  String?
+  createdById  String
+  createdBy    User @relation(fields: [createdById], references: [id])
+  subjectId    String
+  subject      Subject @relation(fields: [subjectId], references: [id])
+  institutionId String?
+  institution  Institution? @relation(fields: [institutionId], references: [id])
+  startTime    DateTime
+  endTime      DateTime
+  durationMins Int
+  settings     Json
+  isActive     Boolean  @default(false)
+  isCompleted  Boolean  @default(false)
+  questions    Question[]
+  attempts     QuizAttempt[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("quizzes")
+}
+
+model Question {
+  id         String   @id @default(cuid())
+  quizId     String
+  quiz       Quiz @relation(fields: [quizId], references: [id])
+  text       String
+  options    Json
+  answer     String
+  difficulty String
+  points     Int      @default(1)
+  createdAt  DateTime @default(now())
+
+  @@map("questions")
+}
+
+model QuizAttempt {
+  id          String   @id @default(cuid())
+  quizId      String
+  quiz        Quiz @relation(fields: [quizId], references: [id])
+  studentId   String
+  student     User @relation(fields: [studentId], references: [id])
+  answers     Json
+  score       Int
+  maxScore    Int
+  completed   Boolean  @default(false)
+  startedAt   DateTime @default(now())
+  submittedAt DateTime?
+  timeSpent   Int? // in minutes
+
+  @@map("quiz_attempts")
+}
+
+model Leaderboard {
+  id            String   @id @default(cuid())
+  institutionId String?
+  institution   Institution? @relation(fields: [institutionId], references: [id])
+  userId        String
+  user          User @relation(fields: [userId], references: [id])
+  points        Int
+  badges        Int
+  stars         Int
+  rankingCycle  String // weekly, monthly, yearly
+  cycleStart    DateTime
+  cycleEnd      DateTime
+  createdAt     DateTime @default(now())
+
+  @@map("leaderboards")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String // quiz, system, achievement
+  read      Boolean @default(false)
+  data      Json?
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+model OTP {
+  id        String   @id @default(cuid())
+  phoneNumber String @unique
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("otps")
+}
